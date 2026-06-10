@@ -21,3 +21,10 @@ add_library(gateway_core STATIC
 )
 target_include_directories(gateway_core PUBLIC include)
 target_link_libraries(gateway_core PRIVATE project_warnings)
+
+option(VEHICLE_GATEWAY_BUILD_TESTS "Build the unit tests (downloads GoogleTest)" OFF)
+
+if(VEHICLE_GATEWAY_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
