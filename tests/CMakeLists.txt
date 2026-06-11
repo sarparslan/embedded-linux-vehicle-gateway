@@ -13,6 +13,7 @@ FetchContent_MakeAvailable(googletest)
 
 add_executable(gateway_tests
     CanDecoderTest.cpp
+    SignalJsonTest.cpp
 )
 target_link_libraries(gateway_tests
     PRIVATE
