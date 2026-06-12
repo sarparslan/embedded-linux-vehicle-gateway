@@ -19,6 +19,7 @@ target_compile_options(project_warnings INTERFACE -Wall -Wextra -Wpedantic)
 # Hardware-independent logic, shared by the gateway and the unit tests.
 add_library(gateway_core STATIC
     src/CanDecoder.cpp
+    src/Config.cpp
     src/SignalJson.cpp
 )
 target_include_directories(gateway_core PUBLIC include)
