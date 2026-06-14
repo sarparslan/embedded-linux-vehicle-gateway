@@ -28,6 +28,17 @@ target_link_libraries(gateway_core
     PRIVATE project_warnings
 )
 
+add_executable(vehicle_gateway
+    src/main.cpp
+    src/CanReader.cpp
+)
+target_link_libraries(vehicle_gateway
+    PRIVATE
+        gateway_core
+        Threads::Threads
+        project_warnings
+)
+
 option(VEHICLE_GATEWAY_BUILD_TESTS "Build the unit tests (downloads GoogleTest)" OFF)
 
 if(VEHICLE_GATEWAY_BUILD_TESTS)
