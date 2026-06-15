@@ -31,6 +31,7 @@ target_link_libraries(gateway_core
 add_executable(vehicle_gateway
     src/main.cpp
     src/CanReader.cpp
+    src/Logger.cpp
 )
 target_link_libraries(vehicle_gateway
     PRIVATE
