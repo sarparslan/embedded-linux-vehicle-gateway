@@ -2,6 +2,7 @@
 #include "CanReader.hpp"
 #include "Config.hpp"
 #include "DecodedSignal.hpp"
+#include "Logger.hpp"
 #include "SignalJson.hpp"
 
 #include <iostream>
@@ -33,6 +34,7 @@ int main(int argc, char* argv[])
 
     CanReader reader(config.canInterface);
     CanDecoder decoder;
+    Logger logger(config.logFile);
 
     if (!reader.open())
     {
@@ -64,6 +66,7 @@ int main(int argc, char* argv[])
             const std::string message = toJson(signal);
 
             std::cout << message << std::endl;
+            logger.log(message);
         }
     }
 }
