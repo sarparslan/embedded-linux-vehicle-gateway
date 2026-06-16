@@ -32,10 +32,12 @@ add_executable(vehicle_gateway
     src/main.cpp
     src/CanReader.cpp
     src/Logger.cpp
+    src/MqttPublisher.cpp
 )
 target_link_libraries(vehicle_gateway
     PRIVATE
         gateway_core
+        mosquitto
         Threads::Threads
         project_warnings
 )
