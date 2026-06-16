@@ -3,6 +3,7 @@
 #include "Config.hpp"
 #include "DecodedSignal.hpp"
 #include "Logger.hpp"
+#include "MqttPublisher.hpp"
 #include "SignalJson.hpp"
 
 #include <iostream>
@@ -35,6 +36,12 @@ int main(int argc, char* argv[])
     CanReader reader(config.canInterface);
     CanDecoder decoder;
     Logger logger(config.logFile);
+    MqttPublisher mqtt(config.mqttHost, config.mqttPort, "vehicle-gateway-client");
+
+    if (!mqtt.connect())
+    {
+        return 1;
+    }
 
     if (!reader.open())
     {
@@ -67,6 +74,7 @@ int main(int argc, char* argv[])
 
             std::cout << message << std::endl;
             logger.log(message);
+            mqtt.publish(config.mqttTopic, message);
         }
     }
 }
