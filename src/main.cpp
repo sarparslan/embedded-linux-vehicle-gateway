@@ -5,9 +5,14 @@
 #include "Logger.hpp"
 #include "MqttPublisher.hpp"
 #include "SignalJson.hpp"
+#include "ThreadSafeQueue.hpp"
 
+#include <atomic>
 #include <iostream>
+#include <optional>
 #include <string>
+#include <thread>
+#include <vector>
 
 #include <linux/can.h>
 
@@ -38,6 +43,9 @@ int main(int argc, char* argv[])
     Logger logger(config.logFile);
     MqttPublisher mqtt(config.mqttHost, config.mqttPort, "vehicle-gateway-client");
 
+    ThreadSafeQueue<can_frame> rawFrameQueue;
+    ThreadSafeQueue<std::string> decodedMessageQueue;
+
     if (!mqtt.connect())
     {
         return 1;
@@ -48,33 +56,60 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    while (true)
-    {
-        can_frame frame;
-        CanReader::ReadResult result = reader.readFrame(frame);
+    std::atomic<bool> readerFailed{false};
 
-        if (result == CanReader::ReadResult::Error)
+    std::thread readerThread([&reader, &rawFrameQueue, &readerFailed]() {
+        while (true)
         {
-            return 1;
-        }
+            can_frame frame;
+            CanReader::ReadResult result = reader.readFrame(frame);
 
-        if (result != CanReader::ReadResult::Frame)
-        {
-            continue;
-        }
-
-        for (const DecodedSignal& signal : decoder.decode(frame))
-        {
-            if (!signal.valid)
+            if (result == CanReader::ReadResult::Frame)
             {
-                continue;
+                rawFrameQueue.push(frame);
             }
-
-            const std::string message = toJson(signal);
-
-            std::cout << message << std::endl;
-            logger.log(message);
-            mqtt.publish(config.mqttTopic, message);
+            else if (result == CanReader::ReadResult::Error)
+            {
+                readerFailed = true;
+                break;
+            }
         }
-    }
+
+        rawFrameQueue.shutdown();
+    });
+
+    std::thread decoderThread([&rawFrameQueue, &decodedMessageQueue, &decoder]() {
+        while (std::optional<can_frame> frame = rawFrameQueue.waitAndPop())
+        {
+            std::vector<DecodedSignal> signals = decoder.decode(*frame);
+
+            for (const DecodedSignal& signal : signals)
+            {
+                if (!signal.valid)
+                {
+                    continue;
+                }
+
+                decodedMessageQueue.push(toJson(signal));
+            }
+        }
+
+        decodedMessageQueue.shutdown();
+    });
+
+    std::thread publisherThread([&decodedMessageQueue, &logger, &mqtt, &config]() {
+        while (std::optional<std::string> message = decodedMessageQueue.waitAndPop())
+        {
+            std::cout << *message << std::endl;
+            logger.log(*message);
+
+            mqtt.publish(config.mqttTopic, *message);
+        }
+    });
+
+    readerThread.join();
+    decoderThread.join();
+    publisherThread.join();
+
+    return readerFailed ? 1 : 0;
 }

@@ -15,6 +15,7 @@ add_executable(gateway_tests
     CanDecoderTest.cpp
     ConfigTest.cpp
     SignalJsonTest.cpp
+    ThreadSafeQueueTest.cpp
 )
 target_link_libraries(gateway_tests
     PRIVATE
