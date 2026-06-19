@@ -8,6 +8,7 @@
 #include "ThreadSafeQueue.hpp"
 
 #include <atomic>
+#include <csignal>
 #include <iostream>
 #include <optional>
 #include <string>
@@ -15,6 +16,28 @@
 #include <vector>
 
 #include <linux/can.h>
+
+namespace
+{
+    std::atomic<bool> running{true};
+    static_assert(std::atomic<bool>::is_always_lock_free,
+                  "running flag must be safe to use from a signal handler");
+
+    void handleSignal(int)
+    {
+        running = false;
+    }
+
+    void installSignalHandlers()
+    {
+        struct sigaction action {};
+        action.sa_handler = handleSignal;
+        sigemptyset(&action.sa_mask);
+
+        sigaction(SIGINT, &action, nullptr);
+        sigaction(SIGTERM, &action, nullptr);
+    }
+}
 
 int main(int argc, char* argv[])
 {
@@ -56,10 +79,12 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    installSignalHandlers();
+
     std::atomic<bool> readerFailed{false};
 
     std::thread readerThread([&reader, &rawFrameQueue, &readerFailed]() {
-        while (true)
+        while (running)
         {
             can_frame frame;
             CanReader::ReadResult result = reader.readFrame(frame);
@@ -110,6 +135,8 @@ int main(int argc, char* argv[])
     readerThread.join();
     decoderThread.join();
     publisherThread.join();
+
+    std::cout << "Gateway stopped" << std::endl;
 
     return readerFailed ? 1 : 0;
 }
